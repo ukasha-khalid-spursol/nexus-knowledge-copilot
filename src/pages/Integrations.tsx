@@ -71,8 +71,8 @@ const Integrations = () => {
     );
   }
 
-  // Show access denied message for non-admin users
-  if (user && !isAdmin) {
+  // Show access denied message for non-admin users (but only after role has loaded)
+  if (user && !roleLoading && !isAdmin) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
