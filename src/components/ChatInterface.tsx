@@ -98,7 +98,7 @@ export const ChatInterface = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8">
         {messages.length === 0 ? (
           <div className="text-center py-12">
             <Bot className="w-12 h-12 mx-auto mb-4 text-primary" />
@@ -132,13 +132,13 @@ export const ChatInterface = () => {
                 </div>
               )}
               
-              <div className={`max-w-3xl ${message.role === "user" ? "order-first" : ""}`}>
-                <Card className={`p-4 ${
+              <div className={`max-w-4xl ${message.role === "user" ? "order-first" : ""}`}>
+                <Card className={`p-6 ${
                   message.role === "user" 
                     ? "bg-primary/10 border-primary/20 ml-auto" 
                     : "bg-gradient-card border-border/50"
                 }`}>
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  <div className="whitespace-pre-wrap text-base leading-relaxed">
                     {message.content}
                   </div>
                   
@@ -192,9 +192,8 @@ export const ChatInterface = () => {
       </div>
 
       {/* Input */}
-      <div className="border-t border-border/30 p-4">
-        <div className="max-w-5xl mx-auto w-full">
-          <form onSubmit={handleSubmit} className="flex gap-4">
+      <div className="border-t border-border/30 p-6">
+        <form onSubmit={handleSubmit} className="flex gap-4">
           <div className="flex-1 relative">
             <Input
               value={input}
@@ -208,7 +207,6 @@ export const ChatInterface = () => {
             <Send className="w-4 h-4" />
           </Button>
         </form>
-        </div>
       </div>
     </div>
   );
