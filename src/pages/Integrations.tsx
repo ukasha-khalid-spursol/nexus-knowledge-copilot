@@ -16,19 +16,7 @@ const Integrations = () => {
   const { toast } = useToast();
 
   const handleConnect = (service: keyof typeof connections) => {
-    // Simulate connection process
-    setTimeout(() => {
-      setConnections(prev => ({ ...prev, [service]: true }));
-      toast({
-        title: "Integration Connected",
-        description: `Successfully connected to ${service.charAt(0).toUpperCase() + service.slice(1)}`,
-      });
-    }, 1000);
-    
-    toast({
-      title: "Connecting...",
-      description: `Setting up ${service.charAt(0).toUpperCase() + service.slice(1)} integration`,
-    });
+    navigate(`/integrations/setup/${service}`);
   };
 
   const allConnected = Object.values(connections).every(Boolean);
