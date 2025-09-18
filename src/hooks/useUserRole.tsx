@@ -7,59 +7,66 @@ export type UserRole = "admin" | "user" | null;
 export const useUserRole = (user: User | null) => {
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
-      // If no user, reset everything
       if (!user) {
         setRole(null);
         setLoading(false);
-        setCurrentUserId(null);
         return;
       }
 
-      // If it's the same user and we already have their ID tracked, skip fetching
-      if (currentUserId === user.id) {
-        setLoading(false);
-        return;
-      }
-
-      // Set the new user ID and start loading
-      setCurrentUserId(user.id);
       setLoading(true);
 
-      console.log("useUserRole: Fetching role for user:", user.id);
-      
       try {
-        const { data, error } = await supabase
+        // First, try to get role from database
+        const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        console.log("useUserRole: Database response:", { data, error });
-
         if (error) {
-          console.error("Error fetching user role:", error);
-          setRole(null);
+          // Fallback to metadata
+          const metadataRole = user.user_metadata?.role || "user";
+          setRole(metadataRole as UserRole);
+        } else if (roleData?.role) {
+          // Found role in database
+          setRole(roleData.role as UserRole);
         } else {
-          const userRole = data?.role || null;
-          console.log("useUserRole: Setting role to:", userRole);
-          setRole(userRole);
+          // No role in database, check metadata and create if needed
+          const metadataRole = user.user_metadata?.role;
+
+          if (metadataRole && (metadataRole === "admin" || metadataRole === "user")) {
+            // Try to create the missing role entry
+            const { error: insertError } = await supabase
+              .from("user_roles")
+              .insert({ user_id: user.id, role: metadataRole });
+
+            if (insertError) {
+              console.error("Failed to create user role:", insertError);
+            }
+
+            setRole(metadataRole as UserRole);
+          } else {
+            // Default to user
+            setRole("user");
+          }
         }
-      } catch (error) {
-        console.error("Error fetching user role:", error);
-        setRole(null);
+      } catch (exception) {
+        console.error("Error fetching user role:", exception);
+        // Emergency fallback
+        const fallbackRole = user.user_metadata?.role || "user";
+        setRole(fallbackRole as UserRole);
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserRole();
-  }, [user?.id, currentUserId]); // Include currentUserId in dependencies
+  }, [user?.id]); // Only depend on user ID
 
-  console.log("useUserRole: Current state:", { role, loading, isAdmin: role === "admin" });
+  const isAdmin = role === "admin";
 
-  return { role, loading, isAdmin: role === "admin" };
+  return { role, loading, isAdmin };
 };

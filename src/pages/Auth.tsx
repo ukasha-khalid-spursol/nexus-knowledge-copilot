@@ -21,7 +21,74 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in and handle auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Check if user has role entry
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          // If no role exists, create one from user metadata
+          if (!roleData && session.user.user_metadata?.role) {
+            try {
+              const { error: roleError } = await supabase
+                .from("user_roles")
+                .insert({
+                  user_id: session.user.id,
+                  role: session.user.user_metadata.role
+                });
+
+              if (roleError) {
+                console.error("Error creating user role on sign in:", roleError);
+              }
+
+              // Also create profile if it doesn't exist
+              const { data: profileData } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("user_id", session.user.id)
+                .maybeSingle();
+
+              if (!profileData) {
+                const { error: profileError } = await supabase
+                  .from("profiles")
+                  .insert({
+                    user_id: session.user.id,
+                    display_name: session.user.user_metadata.display_name || session.user.email?.split("@")[0],
+                  });
+
+                if (profileError) {
+                  console.error("Error creating profile on sign in:", profileError);
+                }
+              }
+
+              // Redirect based on role from metadata
+              if (session.user.user_metadata.role === "admin") {
+                navigate("/integrations");
+              } else {
+                navigate("/chat");
+              }
+            } catch (error) {
+              console.error("Error in auth state change handler:", error);
+              navigate("/chat"); // Default redirect
+            }
+          } else {
+            // Redirect based on existing role
+            if (roleData?.role === "admin") {
+              navigate("/integrations");
+            } else {
+              navigate("/chat");
+            }
+          }
+        }
+      }
+    );
+
+    // Initial session check
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -31,7 +98,7 @@ const Auth = () => {
           .select("role")
           .eq("user_id", session.user.id)
           .maybeSingle();
-        
+
         // Redirect based on role
         if (roleData?.role === "admin") {
           navigate("/integrations");
@@ -41,6 +108,8 @@ const Auth = () => {
       }
     };
     checkUser();
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -49,8 +118,8 @@ const Auth = () => {
 
     try {
       const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
+
+      const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -77,6 +146,37 @@ const Auth = () => {
           });
         }
       } else {
+        // If user was created and confirmed immediately (no email confirmation needed)
+        if (authData.user && authData.session) {
+          try {
+            // Create user role entry
+            const { error: roleError } = await supabase
+              .from("user_roles")
+              .insert({
+                user_id: authData.user.id,
+                role: role
+              });
+
+            if (roleError) {
+              console.error("Error creating user role:", roleError);
+            }
+
+            // Create profile entry
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .insert({
+                user_id: authData.user.id,
+                display_name: displayName || email.split("@")[0],
+              });
+
+            if (profileError) {
+              console.error("Error creating profile:", profileError);
+            }
+          } catch (roleCreationError) {
+            console.error("Error in post-signup setup:", roleCreationError);
+          }
+        }
+
         toast({
           title: "Check your email",
           description: "We've sent you a confirmation link to complete your registration.",
