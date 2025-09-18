@@ -13,8 +13,7 @@ interface IntegrationCardProps {
 
 export const IntegrationCard = ({ name, description, icon, connected, onConnect }: IntegrationCardProps) => {
   return (
-    <Card className="bg-gradient-card border-border/50 p-6 hover:border-primary/30 transition-all duration-300 group relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+    <Card className="bg-gradient-card border-border/50 p-6 hover:border-primary/30 transition-all duration-300 group relative">
       
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -47,7 +46,7 @@ export const IntegrationCard = ({ name, description, icon, connected, onConnect 
           onConnect();
         }}
         variant={connected ? "secondary" : "default"}
-        className="w-full"
+        className="w-full relative z-10 cursor-pointer hover:cursor-pointer"
         disabled={connected}
       >
         {connected ? "Connected" : "Connect"}
