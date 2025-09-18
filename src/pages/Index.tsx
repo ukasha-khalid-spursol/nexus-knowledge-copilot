@@ -3,7 +3,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Bot, Database, FileText, Code, ArrowRight, Zap, Shield, Brain } from "lucide-react";
-import heroBg from "@/assets/hero-bg.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -12,14 +11,6 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
-        <div 
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `url(${heroBg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background/50 to-background" />
         
         <div className="relative container mx-auto px-4 py-24">
