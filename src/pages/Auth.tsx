@@ -23,7 +23,7 @@ const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
+        navigate("/integrations");
       }
     };
     checkUser();
@@ -99,7 +99,7 @@ const Auth = () => {
           title: "Welcome back!",
           description: "You have been signed in successfully.",
         });
-        navigate("/");
+        navigate("/integrations");
       }
     } catch (error) {
       toast({

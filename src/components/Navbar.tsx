@@ -46,17 +46,38 @@ const Navbar = () => {
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-2">
-            {/* Auth-related navigation */}
             {user ? (
-              <Button
-                variant={isActive("/profile") ? "default" : "ghost"}
-                size="sm"
-                onClick={() => navigate("/profile")}
-                className="gap-2"
-              >
-                <User className="w-4 h-4" />
-                Profile
-              </Button>
+              <>
+                <Button
+                  variant={isActive("/integrations") ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => navigate("/integrations")}
+                  className="gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  Integrations
+                </Button>
+                
+                <Button
+                  variant={isActive("/chat") ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => navigate("/chat")}
+                  className="gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Chat
+                </Button>
+
+                <Button
+                  variant={isActive("/profile") ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => navigate("/profile")}
+                  className="gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  Profile
+                </Button>
+              </>
             ) : (
               <Button
                 variant={isActive("/auth") ? "default" : "ghost"}
@@ -76,9 +97,14 @@ const Navbar = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/profile")}
+                onClick={() => {
+                  const routes = ["/integrations", "/chat", "/profile"];
+                  const currentIndex = routes.indexOf(location.pathname);
+                  const nextPath = routes[(currentIndex + 1) % routes.length];
+                  navigate(nextPath);
+                }}
               >
-                <User className="w-4 h-4" />
+                <Bot className="w-4 h-4" />
               </Button>
             ) : (
               <Button
