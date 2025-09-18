@@ -18,7 +18,7 @@ export const IntegrationCard = ({ name, description, icon, connected, onConnect 
       
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-secondary/50 text-primary">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary border border-primary/20">
             {icon}
           </div>
           <div>

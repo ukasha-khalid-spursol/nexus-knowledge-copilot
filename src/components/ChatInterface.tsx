@@ -199,7 +199,7 @@ export const ChatInterface = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about your project, code, or releases..."
-              className="pr-12 bg-secondary/50 border-border/50 focus:border-primary/50"
+              className="pr-12 bg-primary/5 border-border/50 focus:border-primary/50"
               disabled={isLoading}
             />
           </div>
