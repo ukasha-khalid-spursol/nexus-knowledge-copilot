@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import Integrations from "./pages/Integrations";
 import IntegrationSetup from "./pages/IntegrationSetup";
 import Chat from "./pages/Chat";
+import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +24,8 @@ const App = () => (
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/integrations/setup/:service" element={<IntegrationSetup />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/profile" element={<Profile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

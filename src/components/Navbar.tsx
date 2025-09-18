@@ -1,10 +1,33 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Bot, Settings, MessageSquare, Home } from "lucide-react";
+import { Bot, Settings, MessageSquare, Home, User, LogIn } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -52,6 +75,29 @@ const Navbar = () => {
               <MessageSquare className="w-4 h-4" />
               Chat
             </Button>
+
+            {/* Auth-related navigation */}
+            {user ? (
+              <Button
+                variant={isActive("/profile") ? "default" : "ghost"}
+                size="sm"
+                onClick={() => navigate("/profile")}
+                className="gap-2"
+              >
+                <User className="w-4 h-4" />
+                Profile
+              </Button>
+            ) : (
+              <Button
+                variant={isActive("/auth") ? "default" : "ghost"}
+                size="sm"
+                onClick={() => navigate("/auth")}
+                className="gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu - Simple version */}
@@ -60,8 +106,11 @@ const Navbar = () => {
               variant="ghost"
               size="sm"
               onClick={() => {
-                const currentIndex = ["/", "/integrations", "/chat"].indexOf(location.pathname);
-                const nextPath = ["/", "/integrations", "/chat"][(currentIndex + 1) % 3];
+                const routes = user 
+                  ? ["/", "/integrations", "/chat", "/profile"]
+                  : ["/", "/integrations", "/chat", "/auth"];
+                const currentIndex = routes.indexOf(location.pathname);
+                const nextPath = routes[(currentIndex + 1) % routes.length];
                 navigate(nextPath);
               }}
             >
