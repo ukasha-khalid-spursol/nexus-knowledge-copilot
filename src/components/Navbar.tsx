@@ -46,36 +46,6 @@ const Navbar = () => {
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-2">
-            <Button
-              variant={isActive("/") ? "default" : "ghost"}
-              size="sm"
-              onClick={() => navigate("/")}
-              className="gap-2"
-            >
-              <Home className="w-4 h-4" />
-              Home
-            </Button>
-            
-            <Button
-              variant={isActive("/integrations") ? "default" : "ghost"}
-              size="sm"
-              onClick={() => navigate("/integrations")}
-              className="gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              Integrations
-            </Button>
-            
-            <Button
-              variant={isActive("/chat") ? "default" : "ghost"}
-              size="sm"
-              onClick={() => navigate("/chat")}
-              className="gap-2"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Chat
-            </Button>
-
             {/* Auth-related navigation */}
             {user ? (
               <Button
@@ -102,20 +72,23 @@ const Navbar = () => {
 
           {/* Mobile Menu - Simple version */}
           <div className="md:hidden">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const routes = user 
-                  ? ["/", "/integrations", "/chat", "/profile"]
-                  : ["/", "/integrations", "/chat", "/auth"];
-                const currentIndex = routes.indexOf(location.pathname);
-                const nextPath = routes[(currentIndex + 1) % routes.length];
-                navigate(nextPath);
-              }}
-            >
-              <Bot className="w-4 h-4" />
-            </Button>
+            {user ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/profile")}
+              >
+                <User className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/auth")}
+              >
+                <LogIn className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

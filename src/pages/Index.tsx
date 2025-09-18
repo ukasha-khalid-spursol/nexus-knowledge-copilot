@@ -35,22 +35,13 @@ const Index = () => {
               Get instant answers about your project with source attribution.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <div className="flex justify-center mb-12">
               <Button 
                 onClick={() => navigate("/auth")}
                 className="bg-gradient-primary hover:opacity-90 text-primary-foreground shadow-glow text-lg px-8 py-6"
               >
-                Get Started
+                Sign In
                 <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                onClick={() => navigate("/chat")}
-                className="border-border/50 hover:border-primary/50 text-lg px-8 py-6"
-              >
-                Try Demo
-                <Bot className="w-5 h-5 ml-2" />
               </Button>
             </div>
           </div>
