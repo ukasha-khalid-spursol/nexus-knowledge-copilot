@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { IntegrationCard } from "@/components/IntegrationCard";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Database, FileText, Code, ArrowRight, CheckCircle } from "lucide-react";
+import { Database, FileText, Code, ArrowRight, CheckCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
+import type { User } from "@supabase/supabase-js";
 import Navbar from "@/components/Navbar";
 
 const Integrations = () => {
@@ -12,8 +16,92 @@ const Integrations = () => {
     confluence: false,
     sourcegraph: false,
   });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin, loading: roleLoading } = useUserRole(user);
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!loading && !roleLoading && user && !isAdmin) {
+      toast({
+        title: "Access Denied",
+        description: "You need admin privileges to access integrations.",
+        variant: "destructive",
+      });
+      navigate("/chat");
+    }
+  }, [loading, roleLoading, user, isAdmin, navigate, toast]);
+
+  // Redirect unauthenticated users
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [loading, user, navigate]);
+
+  if (loading || roleLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-20">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="text-lg">Loading...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied message for non-admin users
+  if (user && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-20">
+          <div className="max-w-2xl mx-auto">
+            <Card className="bg-gradient-card border-border/50 text-center">
+              <CardHeader>
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center">
+                    <Shield className="w-8 h-8 text-destructive" />
+                  </div>
+                </div>
+                <CardTitle className="text-2xl mb-2">Access Restricted</CardTitle>
+                <CardDescription className="text-lg">
+                  This page is only accessible to admin users. Contact your administrator for access.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => navigate("/chat")} className="bg-gradient-primary hover:opacity-90">
+                  Go to Chat
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleConnect = (service: keyof typeof connections) => {
     console.log('handleConnect called with service:', service);

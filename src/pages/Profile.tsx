@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Mail, Calendar, LogOut, Save } from "lucide-react";
+import { User, Mail, Calendar, LogOut, Save, Shield } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 import Navbar from "@/components/Navbar";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
@@ -32,6 +34,7 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { role, isAdmin } = useUserRole(user);
 
   useEffect(() => {
     // Set up auth state listener
@@ -196,6 +199,10 @@ const Profile = () => {
                 <CardTitle className="flex items-center justify-center gap-2">
                   <User className="w-5 h-5" />
                   {displayName || "Anonymous User"}
+                  <Badge variant={isAdmin ? "default" : "secondary"} className="ml-2">
+                    <Shield className="w-3 h-3 mr-1" />
+                    {role?.charAt(0).toUpperCase()}{role?.slice(1)}
+                  </Badge>
                 </CardTitle>
                 <CardDescription className="flex items-center justify-center gap-2">
                   <Mail className="w-4 h-4" />

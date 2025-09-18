@@ -7,13 +7,15 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Mail, Lock, User } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Bot, Mail, Lock, User, Shield } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [role, setRole] = useState<"admin" | "user">("user");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -22,8 +24,20 @@ const Auth = () => {
     // Check if user is already logged in
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/integrations");
+      if (session?.user) {
+        // Get user role to determine redirect
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        
+        // Redirect based on role
+        if (roleData?.role === "admin") {
+          navigate("/integrations");
+        } else {
+          navigate("/chat");
+        }
       }
     };
     checkUser();
@@ -42,7 +56,8 @@ const Auth = () => {
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            display_name: displayName || email.split("@")[0]
+            display_name: displayName || email.split("@")[0],
+            role: role
           }
         }
       });
@@ -99,7 +114,23 @@ const Auth = () => {
           title: "Welcome back!",
           description: "You have been signed in successfully.",
         });
-        navigate("/integrations");
+        
+        // Get user role to determine redirect
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          
+          // Redirect based on role
+          if (roleData?.role === "admin") {
+            navigate("/integrations");
+          } else {
+            navigate("/chat");
+          }
+        }
       }
     } catch (error) {
       toast({
@@ -199,6 +230,22 @@ const Auth = () => {
                           onChange={(e) => setDisplayName(e.target.value)}
                           className="pl-10"
                         />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="role-select">Account Type</Label>
+                      <div className="relative">
+                        <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                        <Select value={role} onValueChange={(value: "admin" | "user") => setRole(value)}>
+                          <SelectTrigger className="pl-10">
+                            <SelectValue placeholder="Select account type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="user">User - Chat and Profile Access</SelectItem>
+                            <SelectItem value="admin">Admin - Full Access Including Integrations</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     

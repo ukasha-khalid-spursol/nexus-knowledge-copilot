@@ -4,12 +4,14 @@ import { Bot, Settings, MessageSquare, Home, User, LogIn } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const { isAdmin } = useUserRole(user);
 
   useEffect(() => {
     // Set up auth state listener
@@ -48,15 +50,17 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-2">
             {user ? (
               <>
-                <Button
-                  variant={isActive("/integrations") ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => navigate("/integrations")}
-                  className="gap-2"
-                >
-                  <Settings className="w-4 h-4" />
-                  Integrations
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant={isActive("/integrations") ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => navigate("/integrations")}
+                    className="gap-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Integrations
+                  </Button>
+                )}
                 
                 <Button
                   variant={isActive("/chat") ? "default" : "ghost"}
@@ -98,7 +102,7 @@ const Navbar = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  const routes = ["/integrations", "/chat", "/profile"];
+                  const routes = isAdmin ? ["/integrations", "/chat", "/profile"] : ["/chat", "/profile"];
                   const currentIndex = routes.indexOf(location.pathname);
                   const nextPath = routes[(currentIndex + 1) % routes.length];
                   navigate(nextPath);
