@@ -16,7 +16,18 @@ const Integrations = () => {
   const { toast } = useToast();
 
   const handleConnect = (service: keyof typeof connections) => {
-    navigate(`/integrations/setup/${service}`);
+    console.log('handleConnect called with service:', service);
+    try {
+      navigate(`/integrations/setup/${service}`);
+      console.log('Navigation called successfully');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast({
+        title: "Navigation Error",
+        description: "Failed to navigate to setup page",
+        variant: "destructive"
+      });
+    }
   };
 
   const allConnected = Object.values(connections).every(Boolean);

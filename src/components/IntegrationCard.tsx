@@ -40,7 +40,12 @@ export const IntegrationCard = ({ name, description, icon, connected, onConnect 
       <p className="text-muted-foreground text-sm mb-4">{description}</p>
       
       <Button 
-        onClick={onConnect}
+        onClick={(e) => {
+          console.log('Button clicked for:', name);
+          e.preventDefault();
+          e.stopPropagation();
+          onConnect();
+        }}
         variant={connected ? "secondary" : "default"}
         className="w-full"
         disabled={connected}
