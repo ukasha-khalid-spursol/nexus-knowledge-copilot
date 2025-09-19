@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Key, Shield, CheckCircle } from "lucide-react";
+import { ArrowLeft, Key, Shield, CheckCircle, Globe, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
+import { JiraIntegrationService, type JiraCredentials } from "@/services/jira/JiraIntegrationService";
 import Navbar from "@/components/Navbar";
 
 const IntegrationSetup = () => {
@@ -15,6 +15,8 @@ const IntegrationSetup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState("");
+  const [jiraUrl, setJiraUrl] = useState("");
+  const [jiraEmail, setJiraEmail] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
 
   const serviceInfo = {
@@ -50,6 +52,16 @@ const IntegrationSetup = () => {
       return;
     }
 
+    // Validate Jira-specific fields
+    if (service === 'jira' && (!jiraUrl.trim() || !jiraEmail.trim())) {
+      toast({
+        title: "Required Fields Missing",
+        description: "Please enter your Jira URL and email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsConnecting(true);
 
     try {
@@ -59,24 +71,42 @@ const IntegrationSetup = () => {
       }
 
       if (service === 'jira') {
-        // For Jira, we need to validate the credentials first
-        const baseUrl = prompt("Enter your Jira instance URL (e.g., https://yourcompany.atlassian.net):");
-        const email = prompt("Enter your Jira email address:");
-        
-        if (!baseUrl || !email) {
-          throw new Error("Jira URL and email are required");
-        }
+        console.log('Attempting Jira validation with:', { 
+          baseUrl: jiraUrl, 
+          email: jiraEmail, 
+          hasToken: !!apiKey 
+        });
 
-        console.log('Attempting Jira validation with:', { baseUrl, email, hasToken: !!apiKey });
-
-        const credentials = { baseUrl: baseUrl.trim(), email: email.trim(), apiToken: apiKey.trim() };
-        const jiraService = new (await import('@/services/jira/JiraIntegrationService')).JiraIntegrationService(credentials);
+        const credentials: JiraCredentials = { 
+          baseUrl: jiraUrl.trim(), 
+          email: jiraEmail.trim(), 
+          apiToken: apiKey.trim() 
+        };
         
+        const jiraService = new JiraIntegrationService(credentials);
         const validation = await jiraService.validateCredentials();
+        
         console.log('Validation result:', validation);
         
         if (!validation.isValid) {
-          throw new Error(validation.error || "Invalid Jira credentials");
+          // Handle CORS errors gracefully
+          if (validation.error?.includes('Cannot reach Jira instance') || 
+              validation.error?.includes('Connection failed') ||
+              validation.error?.includes('fetch')) {
+            
+            const shouldProceed = window.confirm(
+              `Validation failed due to browser security restrictions (CORS):\n\n${validation.error}\n\nThis is normal for Jira instances. Would you like to save the integration anyway? The credentials will be tested when the chat tries to use them.`
+            );
+            
+            if (!shouldProceed) {
+              setIsConnecting(false);
+              return;
+            }
+            
+            console.log('User chose to proceed despite CORS validation failure');
+          } else {
+            throw new Error(validation.error || "Invalid Jira credentials");
+          }
         }
 
         await JiraIntegrationService.saveIntegration(user.id, credentials);
@@ -178,10 +208,55 @@ const IntegrationSetup = () => {
                 </p>
               </div>
 
+              {/* Jira-specific fields */}
+              {service === 'jira' && (
+                <>
+                  <div className="space-y-3">
+                    <Label htmlFor="jiraUrl" className="text-base font-medium flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      Jira Instance URL
+                    </Label>
+                    <Input
+                      id="jiraUrl"
+                      type="url"
+                      placeholder="https://yourcompany.atlassian.net"
+                      value={jiraUrl}
+                      onChange={(e) => setJiraUrl(e.target.value)}
+                      className="text-base"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Your Jira instance URL (e.g., https://yourcompany.atlassian.net)
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="jiraEmail" className="text-base font-medium flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email Address
+                    </Label>
+                    <Input
+                      id="jiraEmail"
+                      type="email"
+                      placeholder="your.email@company.com"
+                      value={jiraEmail}
+                      onChange={(e) => setJiraEmail(e.target.value)}
+                      className="text-base"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      The email address associated with your Jira account
+                    </p>
+                  </div>
+                </>
+              )}
+
               {/* Connect Button */}
               <Button 
                 onClick={handleConnect}
-                disabled={isConnecting || !apiKey.trim()}
+                disabled={
+                  isConnecting || 
+                  !apiKey.trim() || 
+                  (service === 'jira' && (!jiraUrl.trim() || !jiraEmail.trim()))
+                }
                 className="w-full bg-gradient-primary hover:opacity-90 text-primary-foreground shadow-glow"
                 size="lg"
               >
