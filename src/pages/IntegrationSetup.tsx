@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { JiraIntegrationService, type JiraCredentials } from "@/services/jira/JiraIntegrationService";
 import { ConfluenceIntegrationService, type ConfluenceCredentials } from "@/services/confluence/ConfluenceIntegrationService";
+import { NotionIntegrationService, type NotionCredentials } from "@/services/notion/NotionIntegrationService";
 import Navbar from "@/components/Navbar";
 
 const IntegrationSetup = () => {
@@ -33,11 +34,11 @@ const IntegrationSetup = () => {
       placeholder: "Enter your Confluence API token",
       helpText: "Use the same API token from your Atlassian account"
     },
-    sourcegraph: {
-      name: "Sourcegraph",
-      description: "Index your codebase for intelligent code search and analysis",
-      placeholder: "Enter your Sourcegraph access token", 
-      helpText: "Generate an access token in your Sourcegraph user settings"
+    notion: {
+      name: "Notion",
+      description: "Access your Notion workspace pages and databases",
+      placeholder: "Enter your Notion integration token", 
+      helpText: "Create an integration in your Notion workspace settings to get a token"
     }
   };
 
@@ -58,6 +59,15 @@ const IntegrationSetup = () => {
       toast({
         title: "Required Fields Missing",
         description: `Please enter your ${service} URL and email address`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (service === 'notion' && !apiKey.trim()) {
+      toast({
+        title: "API Token Required",
+        description: "Please enter your Notion integration token",
         variant: "destructive"
       });
       return;
@@ -89,6 +99,13 @@ const IntegrationSetup = () => {
 
         await ConfluenceIntegrationService.saveIntegration(user.id, credentials);
         console.log('Confluence integration saved successfully');
+      } else if (service === 'notion') {
+        const credentials: NotionCredentials = { 
+          apiToken: apiKey.trim() 
+        };
+
+        await NotionIntegrationService.saveIntegration(user.id, credentials);
+        console.log('Notion integration saved successfully');
       } else {
         // Simulate saving for other services
         await new Promise(resolve => setTimeout(resolve, 1000));

@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { IntegrationCard } from "@/components/IntegrationCard";
-import { CanvaIntegrationCard } from "@/components/integrations/CanvaIntegrationCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Database, FileText, Code, Palette, ArrowRight, CheckCircle, Shield } from "lucide-react";
+import { Database, FileText, BookOpen, ArrowRight, CheckCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -12,20 +11,14 @@ import { IntegrationsService, type IntegrationStatus } from "@/services/integrat
 import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
 import { ConfluenceIntegrationService } from "@/services/confluence/ConfluenceIntegrationService";
 import type { User } from "@supabase/supabase-js";
-import type { CanvaCredentials, CanvaUser } from "@/types/canva";
-import { CanvaConnectService } from "@/services/canva/CanvaConnectService";
 import Navbar from "@/components/Navbar";
 
 const Integrations = () => {
   const [connections, setConnections] = useState<IntegrationStatus>({
     jira: { connected: false, enabled: false },
     confluence: { connected: false, enabled: false },
-    sourcegraph: { connected: false, enabled: false },
-    canva: { connected: false, enabled: false },
+    notion: { connected: false, enabled: false },
   });
-  const [canvaCredentials, setCanvaCredentials] = useState<CanvaCredentials | null>(null);
-  const [canvaUserInfo, setCanvaUserInfo] = useState<CanvaUser | null>(null);
-  const [canvaService, setCanvaService] = useState<CanvaConnectService | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -132,13 +125,8 @@ const Integrations = () => {
   const handleConnect = (service: keyof typeof connections) => {
     console.log('handleConnect called with service:', service);
     try {
-      if (service === 'canva') {
-        // For Canva, we handle the connection differently since it uses OAuth
-        handleCanvaConnect();
-      } else {
-        navigate(`/integrations/setup/${service}`);
-        console.log('Navigation called successfully');
-      }
+      navigate(`/integrations/setup/${service}`);
+      console.log('Navigation called successfully');
     } catch (error) {
       console.error('Navigation error:', error);
       toast({
@@ -153,16 +141,7 @@ const Integrations = () => {
     if (!user) return;
 
     try {
-      if (service === 'jira') {
-        await IntegrationsService.removeIntegration(user.id, service);
-      } else if (service === 'confluence') {
-        await IntegrationsService.removeIntegration(user.id, service);
-      } else if (service === 'canva') {
-        handleCanvaDisconnect();
-        return;
-      } else {
-        await IntegrationsService.removeIntegration(user.id, service);
-      }
+      await IntegrationsService.removeIntegration(user.id, service);
 
       // Update local state
       setConnections(prev => ({ 
@@ -187,19 +166,6 @@ const Integrations = () => {
     if (!user) return;
 
     try {
-      if (service === 'canva') {
-        // Handle Canva differently since it's not in database
-        setConnections(prev => ({ 
-          ...prev, 
-          canva: { ...prev.canva, enabled }
-        }));
-        toast({
-          title: enabled ? "Canva Enabled" : "Canva Disabled",
-          description: `Canva integration has been ${enabled ? 'enabled' : 'disabled'}`,
-        });
-        return;
-      }
-
       await IntegrationsService.toggleIntegration(user.id, service, enabled);
       
       // Update local state
@@ -219,87 +185,6 @@ const Integrations = () => {
         variant: "destructive"
       });
     }
-  };
-
-  const handleCanvaConnect = async () => {
-    try {
-      // In a real implementation, this would initiate OAuth flow
-      // For demo purposes, we'll simulate the connection
-      toast({
-        title: "OAuth Required",
-        description: "Canva integration requires OAuth setup. This would redirect to Canva's authorization page.",
-      });
-
-      // Simulate successful connection for demo
-      setTimeout(() => {
-        setConnections(prev => ({ 
-          ...prev, 
-          canva: { connected: true, enabled: true }
-        }));
-        // Simulate getting credentials and user info
-        const mockCredentials: CanvaCredentials = {
-          access_token: "demo_access_token",
-          refresh_token: "demo_refresh_token",
-          expires_in: 3600,
-          token_type: "Bearer",
-          scope: "design:read design:write"
-        };
-        const mockUserInfo: CanvaUser = {
-          id: "demo_user_id",
-          display_name: "Demo User",
-          email: "demo@example.com"
-        };
-
-        setCanvaCredentials(mockCredentials);
-        setCanvaUserInfo(mockUserInfo);
-
-        // Initialize Canva service
-        const service = new CanvaConnectService(mockCredentials);
-        setCanvaService(service);
-
-        toast({
-          title: "Canva Connected",
-          description: "Successfully connected to Canva (demo mode)",
-        });
-      }, 2000);
-    } catch (error) {
-      toast({
-        title: "Connection Failed",
-        description: "Failed to connect to Canva",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleCanvaDisconnect = async () => {
-    try {
-      setConnections(prev => ({ 
-        ...prev, 
-        canva: { connected: false, enabled: false }
-      }));
-      setCanvaCredentials(null);
-      setCanvaUserInfo(null);
-      setCanvaService(null);
-
-      toast({
-        title: "Canva Disconnected",
-        description: "Successfully disconnected from Canva",
-      });
-    } catch (error) {
-      toast({
-        title: "Disconnection Failed",
-        description: "Failed to disconnect from Canva",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleCanvaConfigure = () => {
-    // Navigate to a configuration page or open a dialog
-    toast({
-      title: "Configuration",
-      description: "Canva configuration options would be available here",
-    });
   };
 
   const allConnected = Object.values(connections).every(service => service.connected);
@@ -344,23 +229,14 @@ const Integrations = () => {
             />
 
             <IntegrationCard
-              name="Sourcegraph"
-              description="Index your codebase for intelligent code search and understanding with AI-powered insights."
-              icon={<Code className="w-5 h-5" />}
-              connected={connections.sourcegraph.connected}
-              enabled={connections.sourcegraph.enabled}
-              onConnect={() => handleConnect("sourcegraph")}
-              onDisconnect={() => handleDisconnect("sourcegraph")}
-              onToggleEnabled={(enabled) => handleToggleEnabled("sourcegraph", enabled)}
-            />
-
-            <CanvaIntegrationCard
-              isConnected={connections.canva.connected}
-              credentials={canvaCredentials}
-              userInfo={canvaUserInfo}
-              onConnect={handleCanvaConnect}
-              onDisconnect={handleCanvaDisconnect}
-              onConfigure={handleCanvaConfigure}
+              name="Notion"
+              description="Access your Notion workspace pages, databases, and documentation for comprehensive knowledge search."
+              icon={<BookOpen className="w-5 h-5" />}
+              connected={connections.notion.connected}
+              enabled={connections.notion.enabled}
+              onConnect={() => handleConnect("notion")}
+              onDisconnect={() => handleDisconnect("notion")}
+              onToggleEnabled={(enabled) => handleToggleEnabled("notion", enabled)}
             />
           </div>
 

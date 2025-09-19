@@ -1,12 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
 import { ConfluenceIntegrationService } from "@/services/confluence/ConfluenceIntegrationService";
+import { NotionIntegrationService } from "@/services/notion/NotionIntegrationService";
 
 export interface IntegrationStatus {
   jira: { connected: boolean; enabled: boolean };
   confluence: { connected: boolean; enabled: boolean };
-  sourcegraph: { connected: boolean; enabled: boolean };
-  canva: { connected: boolean; enabled: boolean };
+  notion: { connected: boolean; enabled: boolean };
 }
 
 export class IntegrationsService {
@@ -28,8 +28,7 @@ export class IntegrationsService {
       return {
         jira: { connected: false, enabled: false },
         confluence: { connected: false, enabled: false },
-        sourcegraph: { connected: false, enabled: false },
-        canva: { connected: false, enabled: false },
+        notion: { connected: false, enabled: false },
         ...integrations
       };
     } catch (error) {
@@ -37,8 +36,7 @@ export class IntegrationsService {
       return {
         jira: { connected: false, enabled: false },
         confluence: { connected: false, enabled: false },
-        sourcegraph: { connected: false, enabled: false },
-        canva: { connected: false, enabled: false }
+        notion: { connected: false, enabled: false }
       };
     }
   }
@@ -125,7 +123,29 @@ export class IntegrationsService {
       }
     }
 
-    // TODO: Add Sourcegraph search when implemented
+    // Search Notion if connected and enabled
+    if (status.notion.connected && status.notion.enabled) {
+      const notionCredentials = await NotionIntegrationService.loadIntegration(userId);
+      if (notionCredentials) {
+        try {
+          const notionService = new NotionIntegrationService(notionCredentials);
+          const notionPages = await notionService.searchPages(query, 10);
+          
+          results.push(...notionPages.map(page => ({
+            title: page.title,
+            type: 'notion' as const,
+            url: page.url,
+            content: page.excerpt || '',
+            metadata: {
+              database: page.database,
+              lastModified: page.lastModified
+            }
+          })));
+        } catch (error) {
+          console.error('Notion search failed:', error);
+        }
+      }
+    }
 
     return results;
   }

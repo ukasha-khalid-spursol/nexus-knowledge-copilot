@@ -1,48 +1,64 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, ExternalLink, Loader2, Palette, Wand2 } from "lucide-react";
-import { CanvaDesignPreview } from "@/components/chat/CanvaDesignPreview";
-import { CanvaDesignActions } from "@/components/chat/CanvaDesignActions";
-import { canvaMCPClient } from "@/services/canva/CanvaMCPClient";
-import type { CanvaDesign } from "@/types/canva";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Send, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { IntegrationsService } from "@/services/integrations/IntegrationsService";
+import type { User } from "@supabase/supabase-js";
 
 interface MockResponse {
   content: string;
   sources?: Array<{
     title: string;
-    type: "jira" | "confluence" | "code";
+    type: "jira" | "confluence" | "notion" | "code";
     url: string;
   }>;
-  showDesignActions?: boolean;
 }
+
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: Array<{
     title: string;
-    type: "jira" | "confluence" | "code";
+    type: "jira" | "confluence" | "notion" | "code";
     url: string;
   }>;
-  design?: CanvaDesign;
-  designs?: CanvaDesign[];
-  showDesignActions?: boolean;
 }
 
 export const ChatInterface = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    // Get current user
+    const getCurrentUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-    });
+    };
+    getCurrentUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const mockResponses: Record<string, MockResponse> = {
@@ -51,15 +67,15 @@ export const ChatInterface = () => {
       sources: [
         { title: "Local Development Setup Guide", type: "confluence" as const, url: "#" },
         { title: "Environment Configuration", type: "code" as const, url: "#" },
-        { title: "DEV-123: Update setup instructions", type: "jira" as const, url: "#" }
+        { title: "DEV-123: Development Environment", type: "jira" as const, url: "#" }
       ]
     },
     "release": {
       content: "Based on the current Q1 release tracking, here are the main blockers:\n\n• **Authentication Bug** (CRITICAL) - OAuth flow failing in production\n• **Performance Issue** - API response times exceeding 2s threshold\n• **Missing Tests** - 3 core features lack sufficient test coverage\n\nThe release is currently at 78% completion with 5 days remaining in the sprint.",
       sources: [
         { title: "PROJ-456: Q1 Release Tracking", type: "jira" as const, url: "#" },
-        { title: "Performance Monitoring Dashboard", type: "confluence" as const, url: "#" },
-        { title: "Test Coverage Report", type: "code" as const, url: "#" }
+        { title: "Release Notes Template", type: "confluence" as const, url: "#" },
+        { title: "Performance Monitoring Dashboard", type: "code" as const, url: "#" }
       ]
     },
     "oauth": {
@@ -69,20 +85,6 @@ export const ChatInterface = () => {
         { title: "Authentication Architecture", type: "confluence" as const, url: "#" },
         { title: "AUTH-789: OAuth Implementation", type: "jira" as const, url: "#" }
       ]
-    },
-    "design": {
-      content: "I can help you create stunning designs! Here are some things I can do:\n\n• **Create presentations** - Professional slides for your meetings and pitches\n• **Generate marketing materials** - Flyers, posters, and social media graphics\n• **Design documents** - Reports, proposals, and documentation with great visuals\n• **Brand assets** - Logos, business cards, and branded materials\n\nWould you like me to create a design for you? Just describe what you need and I'll generate it using AI!",
-      showDesignActions: true,
-      sources: [
-        { title: "Design Documentation", type: "confluence" as const, url: "#" },
-        { title: "Design System Guidelines", type: "code" as const, url: "#" },
-        { title: "DES-123: Design Integration", type: "jira" as const, url: "#" }
-      ]
-    },
-    "presentations": {
-      content: "I can create professional presentations tailored to your needs! Here are some popular presentation types:\n\n• **Business Presentations** - Quarterly reviews, project updates, strategy decks\n• **Pitch Decks** - Investor presentations, startup pitches, sales proposals\n• **Educational Content** - Training materials, workshops, knowledge sharing\n• **Team Updates** - Sprint reviews, roadmap presentations, status reports\n\nJust tell me the topic and I'll generate a presentation with relevant content and professional design!",
-      showDesignActions: true,
-      sources: []
     }
   };
 
@@ -124,17 +126,12 @@ export const ChatInterface = () => {
           response = mockResponses.release;
         } else if (input.toLowerCase().includes("oauth") || input.toLowerCase().includes("auth")) {
           response = mockResponses.oauth;
-        } else if (input.toLowerCase().includes("design") || input.toLowerCase().includes("create") || input.toLowerCase().includes("canva")) {
-          response = mockResponses.design;
-        } else if (input.toLowerCase().includes("presentation") || input.toLowerCase().includes("slides")) {
-          response = mockResponses.presentations;
         }
 
         const assistantMessage: ChatMessage = {
           role: "assistant",
           content: response.content,
-          sources: response.sources,
-          showDesignActions: response.showDesignActions
+          sources: response.sources
         };
 
         setMessages(prev => [...prev, assistantMessage]);
@@ -157,6 +154,7 @@ export const ChatInterface = () => {
     switch (type) {
       case "jira": return "🎫";
       case "confluence": return "📝";
+      case "notion": return "📚";
       case "code": return "💻";
       default: return "📄";
     }
@@ -166,92 +164,56 @@ export const ChatInterface = () => {
     switch (type) {
       case "jira": return "bg-info/20 text-info-foreground border-info/30";
       case "confluence": return "bg-warning/20 text-warning-foreground border-warning/30";
+      case "notion": return "bg-primary/20 text-primary-foreground border-primary/30";
       case "code": return "bg-success/20 text-success-foreground border-success/30";
       default: return "bg-muted";
     }
   };
 
-  const handleDesignCreated = (design: CanvaDesign) => {
-    const designMessage: ChatMessage = {
-      role: "assistant",
-      content: `I've created a new ${design.design_type.replace('_', ' ')} design for you! You can edit it in Canva or export it in various formats.`,
-      design,
-      sources: [
-        {
-          title: design.title,
-          type: "code",
-          url: design.urls.edit_url
-        }
-      ]
-    };
-    setMessages(prev => [...prev, designMessage]);
-  };
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
-        {messages.length === 0 ? (
-          <div className="text-center py-12">
-            <Bot className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-lg font-medium mb-2">Ask me anything about your project</h3>
-            <p className="text-muted-foreground">Try asking about setup, releases, code architecture, or creating designs</p>
+    <div className="flex flex-col h-full max-h-[600px] bg-gradient-card border border-border/50 rounded-lg">
+      {/* Chat Header */}
+      <div className="flex items-center gap-3 p-4 border-b border-border/30">
+        <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center">
+          <span className="text-sm font-bold text-primary-foreground">AI</span>
+        </div>
+        <div>
+          <h3 className="font-semibold text-foreground">Knowledge Copilot</h3>
+          <p className="text-xs text-muted-foreground">
+            Ask about your projects, documentation, and code
+          </p>
+        </div>
+      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8 max-w-6xl mx-auto">
-              <Card className="p-4 bg-gradient-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
-                    onClick={() => setInput("How do I set up local dev?")}>
-                <h4 className="font-medium mb-2">🚀 Onboarding</h4>
-                <p className="text-sm text-muted-foreground">"How do I set up local dev?"</p>
-              </Card>
-              <Card className="p-4 bg-gradient-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
-                    onClick={() => setInput("What's blocking the Q1 release?")}>
-                <h4 className="font-medium mb-2">📊 Release Check</h4>
-                <p className="text-sm text-muted-foreground">"What's blocking the Q1 release?"</p>
-              </Card>
-              <Card className="p-4 bg-gradient-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
-                    onClick={() => setInput("Where is OAuth handled in the repo?")}>
-                <h4 className="font-medium mb-2">💻 Code Q&A</h4>
-                <p className="text-sm text-muted-foreground">"Where is OAuth handled in the repo?"</p>
-              </Card>
-              <Card className="p-4 bg-gradient-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
-                    onClick={() => setInput("Create a presentation about our Q1 roadmap")}>
-                <h4 className="font-medium mb-2">🎨 Design Help</h4>
-                <p className="text-sm text-muted-foreground">"Create a presentation about our Q1 roadmap"</p>
-              </Card>
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-4 space-y-4">
+        <div className="space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-2">👋 Welcome to your Knowledge Copilot!</p>
+              <p className="text-sm text-muted-foreground">
+                Ask me about your Jira tickets, Confluence docs, or Notion pages
+              </p>
             </div>
-          </div>
-        ) : (
-          messages.map((message, index) => (
-            <div key={index} className={`flex gap-4 ${message.role === "user" ? "justify-end" : ""}`}>
+          )}
+          
+          {messages.map((message, index) => (
+            <div key={index} className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}>
               {message.role === "assistant" && (
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-primary" />
+                <div className="w-6 h-6 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0 mt-1">
+                  <span className="text-xs font-bold text-primary-foreground">AI</span>
                 </div>
               )}
               
-              <div className={`max-w-4xl ${message.role === "user" ? "order-first" : ""}`}>
-                <Card className={`p-6 ${
-                  message.role === "user" 
-                    ? "bg-primary/10 border-primary/20 ml-auto" 
-                    : "bg-gradient-card border-border/50"
-                }`}>
-                  <div className="whitespace-pre-wrap text-base leading-relaxed">
+              <Card className={`max-w-[80%] p-4 ${
+                message.role === "user" 
+                  ? "bg-primary text-primary-foreground ml-auto" 
+                  : "bg-background border-border/50"
+              }`}>
+                <div className="space-y-3">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">
                     {message.content}
-                  </div>
-
-                  {/* Design Preview */}
-                  {message.design && (
-                    <div className="mt-4">
-                      <CanvaDesignPreview design={message.design} />
-                    </div>
-                  )}
-
-                  {/* Design Actions */}
-                  {message.showDesignActions && (
-                    <div className="mt-4">
-                      <CanvaDesignActions onDesignCreated={handleDesignCreated} />
-                    </div>
-                  )}
+                  </p>
 
                   {message.sources && (
                     <div className="mt-4 pt-4 border-t border-border/30">
@@ -275,50 +237,51 @@ export const ChatInterface = () => {
                       </div>
                     </div>
                   )}
-                </Card>
-              </div>
-              
+                </div>
+              </Card>
+
               {message.role === "user" && (
-                <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0">
-                  <User className="w-4 h-4" />
+                <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-1">
+                  <span className="text-xs font-bold">You</span>
                 </div>
               )}
             </div>
-          ))
-        )}
-        
-        {isLoading && (
-          <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-              <Bot className="w-4 h-4 text-primary" />
-            </div>
-            <Card className="p-4 bg-gradient-card border-border/50">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Searching knowledge base...</span>
+          ))}
+          
+          {isLoading && (
+            <div className="flex gap-3">
+              <div className="w-6 h-6 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-xs font-bold text-primary-foreground">AI</span>
               </div>
-            </Card>
-          </div>
-        )}
-      </div>
+              <Card className="bg-background border-border/50 p-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 bg-current rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-current rounded-full animate-bounce delay-150" />
+                  <div className="w-2 h-2 bg-current rounded-full animate-bounce delay-300" />
+                  <span className="text-sm ml-2">Searching your knowledge base...</span>
+                </div>
+              </Card>
+            </div>
+          )}
+        </div>
+        <div ref={messagesEndRef} />
+      </ScrollArea>
 
       {/* Input */}
-      <div className="border-t border-border/30 p-6">
-        <form onSubmit={handleSubmit} className="flex gap-4">
-          <div className="flex-1 relative">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about your project, code, releases, or create designs..."
-              className="pr-12 bg-primary/5 border-border/50 focus:border-primary/50"
-              disabled={isLoading}
-            />
-          </div>
-          <Button type="submit" disabled={!input.trim() || isLoading} className="px-6">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-border/30">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask about your projects, docs, or code..."
+            className="flex-1"
+            disabled={isLoading}
+          />
+          <Button type="submit" disabled={isLoading || !input.trim()}>
             <Send className="w-4 h-4" />
           </Button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 };
