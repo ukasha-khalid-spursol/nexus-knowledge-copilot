@@ -17,7 +17,7 @@ const IntegrationSetup = () => {
   const [apiKey, setApiKey] = useState("");
   const [jiraUrl, setJiraUrl] = useState("");
   const [jiraEmail, setJiraEmail] = useState("");
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const serviceInfo = {
     jira: {
@@ -42,7 +42,7 @@ const IntegrationSetup = () => {
 
   const currentService = serviceInfo[service as keyof typeof serviceInfo];
 
-  const handleConnect = async () => {
+  const handleSave = async () => {
     if (!apiKey.trim()) {
       toast({
         title: "API Key Required",
@@ -62,7 +62,7 @@ const IntegrationSetup = () => {
       return;
     }
 
-    setIsConnecting(true);
+    setIsSaving(true);
 
     try {
       const user = (await supabase.auth.getSession()).data.session?.user;
@@ -71,67 +71,35 @@ const IntegrationSetup = () => {
       }
 
       if (service === 'jira') {
-        console.log('Attempting Jira validation with:', { 
-          baseUrl: jiraUrl, 
-          email: jiraEmail, 
-          hasToken: !!apiKey 
-        });
-
         const credentials: JiraCredentials = { 
           baseUrl: jiraUrl.trim(), 
           email: jiraEmail.trim(), 
           apiToken: apiKey.trim() 
         };
-        
-        const jiraService = new JiraIntegrationService(credentials);
-        const validation = await jiraService.validateCredentials();
-        
-        console.log('Validation result:', validation);
-        
-        if (!validation.isValid) {
-          // Handle CORS errors gracefully
-          if (validation.error?.includes('Cannot reach Jira instance') || 
-              validation.error?.includes('Connection failed') ||
-              validation.error?.includes('fetch')) {
-            
-            const shouldProceed = window.confirm(
-              `Validation failed due to browser security restrictions (CORS):\n\n${validation.error}\n\nThis is normal for Jira instances. Would you like to save the integration anyway? The credentials will be tested when the chat tries to use them.`
-            );
-            
-            if (!shouldProceed) {
-              setIsConnecting(false);
-              return;
-            }
-            
-            console.log('User chose to proceed despite CORS validation failure');
-          } else {
-            throw new Error(validation.error || "Invalid Jira credentials");
-          }
-        }
 
         await JiraIntegrationService.saveIntegration(user.id, credentials);
         console.log('Jira integration saved successfully');
       } else {
-        // Simulate API validation for other services
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Simulate saving for other services
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       toast({
-        title: "Integration Connected!",
-        description: `Successfully connected to ${currentService.name}`,
+        title: "Integration Saved!",
+        description: `Successfully saved ${currentService.name} credentials. Connection will be tested when you use it in chat.`,
       });
 
       // Navigate back to integrations page
       navigate("/integrations");
     } catch (error) {
-      console.error('Integration connection error:', error);
+      console.error('Integration save error:', error);
       toast({
-        title: "Connection Failed",
+        title: "Save Failed",
         description: error instanceof Error ? error.message : "Please check your credentials and try again",
         variant: "destructive"
       });
     } finally {
-      setIsConnecting(false);
+      setIsSaving(false);
     }
   };
 
@@ -249,26 +217,26 @@ const IntegrationSetup = () => {
                 </>
               )}
 
-              {/* Connect Button */}
+              {/* Save Button */}
               <Button 
-                onClick={handleConnect}
+                onClick={handleSave}
                 disabled={
-                  isConnecting || 
+                  isSaving || 
                   !apiKey.trim() || 
                   (service === 'jira' && (!jiraUrl.trim() || !jiraEmail.trim()))
                 }
                 className="w-full bg-gradient-primary hover:opacity-90 text-primary-foreground shadow-glow"
                 size="lg"
               >
-                {isConnecting ? (
+                {isSaving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
-                    Connecting...
+                    Saving...
                   </>
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    Connect Integration
+                    Save Integration
                   </>
                 )}
               </Button>
