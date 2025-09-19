@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { IntegrationsService } from "@/services/integrations/IntegrationsService";
+import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
 import type { User } from "@supabase/supabase-js";
 import type { CanvaCredentials, CanvaUser } from "@/types/canva";
 import { CanvaConnectService } from "@/services/canva/CanvaConnectService";
@@ -147,6 +148,33 @@ const Integrations = () => {
     }
   };
 
+  const handleDisconnect = async (service: keyof typeof connections) => {
+    if (!user) return;
+
+    try {
+      if (service === 'jira') {
+        await JiraIntegrationService.removeIntegration(user.id);
+      } else if (service === 'canva') {
+        handleCanvaDisconnect();
+        return;
+      }
+
+      // Update local state
+      setConnections(prev => ({ ...prev, [service]: false }));
+
+      toast({
+        title: "Integration Disconnected",
+        description: `Successfully disconnected from ${service}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Disconnection Failed",
+        description: `Failed to disconnect from ${service}`,
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleCanvaConnect = async () => {
     try {
       // In a real implementation, this would initiate OAuth flow
@@ -247,6 +275,7 @@ const Integrations = () => {
               icon={<Database className="w-5 h-5" />}
               connected={connections.jira}
               onConnect={() => handleConnect("jira")}
+              onDisconnect={() => handleDisconnect("jira")}
             />
 
             <IntegrationCard
@@ -255,6 +284,7 @@ const Integrations = () => {
               icon={<FileText className="w-5 h-5" />}
               connected={connections.confluence}
               onConnect={() => handleConnect("confluence")}
+              onDisconnect={() => handleDisconnect("confluence")}
             />
 
             <IntegrationCard
@@ -263,6 +293,7 @@ const Integrations = () => {
               icon={<Code className="w-5 h-5" />}
               connected={connections.sourcegraph}
               onConnect={() => handleConnect("sourcegraph")}
+              onDisconnect={() => handleDisconnect("sourcegraph")}
             />
 
             <CanvaIntegrationCard

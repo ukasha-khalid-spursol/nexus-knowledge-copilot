@@ -9,9 +9,10 @@ interface IntegrationCardProps {
   icon: React.ReactNode;
   connected: boolean;
   onConnect: () => void;
+  onDisconnect?: () => void;
 }
 
-export const IntegrationCard = ({ name, description, icon, connected, onConnect }: IntegrationCardProps) => {
+export const IntegrationCard = ({ name, description, icon, connected, onConnect, onDisconnect }: IntegrationCardProps) => {
   return (
     <Card className="bg-gradient-card border-border/50 p-6 hover:border-primary/30 transition-all duration-300 group relative">
       
@@ -38,20 +39,49 @@ export const IntegrationCard = ({ name, description, icon, connected, onConnect 
       
       <p className="text-muted-foreground text-sm mb-4">{description}</p>
       
-      <Button 
-        onClick={(e) => {
-          console.log('Button clicked for:', name);
-          e.preventDefault();
-          e.stopPropagation();
-          onConnect();
-        }}
-        variant={connected ? "secondary" : "default"}
-        className="w-full relative z-10 cursor-pointer hover:cursor-pointer"
-        disabled={connected}
-      >
-        {connected ? "Connected" : "Connect"}
-        <ExternalLink className="w-4 h-4 ml-2" />
-      </Button>
+      {connected ? (
+        <div className="flex gap-2">
+          <Button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onConnect();
+            }}
+            variant="outline"
+            className="flex-1"
+          >
+            Reconfigure
+            <ExternalLink className="w-4 h-4 ml-2" />
+          </Button>
+          {onDisconnect && (
+            <Button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDisconnect();
+              }}
+              variant="destructive"
+              size="sm"
+            >
+              Disconnect
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Button 
+          onClick={(e) => {
+            console.log('Button clicked for:', name);
+            e.preventDefault();
+            e.stopPropagation();
+            onConnect();
+          }}
+          variant="default"
+          className="w-full relative z-10 cursor-pointer hover:cursor-pointer"
+        >
+          Connect
+          <ExternalLink className="w-4 h-4 ml-2" />
+        </Button>
+      )}
     </Card>
   );
 };
