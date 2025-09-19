@@ -67,7 +67,8 @@ export class CanvaMCPClient {
         };
 
         this.ws.onmessage = (event) => {
-          this.handleMessage(event.data);
+          const messageData = typeof event.data === 'string' ? event.data : event.data.toString();
+          this.handleMessage(messageData);
         };
 
         this.ws.onclose = (event) => {
