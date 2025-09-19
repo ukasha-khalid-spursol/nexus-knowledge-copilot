@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <button onclick="testConnection()">Test MCP Connection</button>
+    <div id="output"></div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            output.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+
+        function testConnection() {
+            log('Testing connection to ws://localhost:3005/mcp...');
+
+            const ws = new WebSocket('ws://localhost:3005/mcp');
+
+            ws.onopen = function() {
+                log('✅ Connected successfully!');
+
+                // Send a ping
+                const pingMessage = {
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'ping'
+                };
+                ws.send(JSON.stringify(pingMessage));
+                log('📤 Sent ping message');
+            };
+
+            ws.onmessage = function(event) {
+                log('📥 Received: ' + event.data);
+            };
+
+            ws.onclose = function(event) {
+                log('❌ Connection closed: ' + event.code + ' ' + event.reason);
+            };
+
+            ws.onerror = function(error) {
+                log('❌ WebSocket error: ' + error);
+            };
+        }
+    </script>
+</body>
+</html>

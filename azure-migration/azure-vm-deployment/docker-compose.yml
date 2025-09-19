@@ -1,0 +1,219 @@
+# =====================================================
+# Docker Compose Configuration for Nexus Knowledge Copilot
+# Complete stack with SQL Server, Redis, and application
+# =====================================================
+
+version: '3.8'
+
+services:
+  # =====================================================
+  # SQL Server Database
+  # =====================================================
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: nexus-sqlserver
+    hostname: sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=NexusStrong123!
+      - MSSQL_PID=Express
+      - MSSQL_TCP_PORT=1433
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./sql-init:/docker-entrypoint-initdb.d
+    networks:
+      - nexus-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P NexusStrong123! -Q 'SELECT 1'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # =====================================================
+  # Redis Cache and Session Store
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - nexus-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================
+  # Nexus Knowledge Copilot Backend API
+  # =====================================================
+  nexus-backend:
+    build:
+      context: ../backend
+      dockerfile: ../azure-vm-deployment/Dockerfile
+    container_name: nexus-backend
+    hostname: nexus-backend
+    ports:
+      - "3001:3001"
+    environment:
+      # Application
+      - NODE_ENV=production
+      - PORT=3001
+
+      # Database
+      - DB_SERVER=sqlserver
+      - DB_DATABASE=NexusKnowledgeCopilot
+      - DB_USER=sa
+      - DB_PASSWORD=NexusStrong123!
+      - DB_PORT=1433
+      - DB_ENCRYPT=false
+      - DB_TRUST_SERVER_CERTIFICATE=true
+
+      # JWT Configuration
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - JWT_ACCESS_TOKEN_EXPIRY=15m
+      - JWT_REFRESH_TOKEN_EXPIRY=7d
+
+      # Redis
+      - REDIS_URL=redis://redis:6379
+      - REDIS_DB=0
+
+      # Security
+      - BCRYPT_SALT_ROUNDS=12
+      - PASSWORD_MIN_LENGTH=8
+
+      # Rate Limiting
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=1000
+      - AUTH_RATE_LIMIT_MAX=10
+
+      # Email (configure with your SMTP provider)
+      - EMAIL_SERVICE=gmail
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_SECURE=false
+      - EMAIL_USER=your-email@gmail.com
+      - EMAIL_PASSWORD=your-app-password
+
+      # Canva Integration
+      - CANVA_CLIENT_ID=your-canva-client-id
+      - CANVA_CLIENT_SECRET=your-canva-client-secret
+      - CANVA_REDIRECT_URI=https://yourdomain.com/api/canva/callback
+
+      # File uploads
+      - MAX_FILE_SIZE=10485760
+      - UPLOAD_DIR=/app/uploads
+
+      # Logging
+      - LOG_LEVEL=info
+      - LOG_FILE=/app/logs/app.log
+
+    volumes:
+      - nexus_uploads:/app/uploads
+      - nexus_logs:/app/logs
+      - nexus_backups:/app/backups
+
+    networks:
+      - nexus-network
+
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # =====================================================
+  # Nginx Reverse Proxy and Load Balancer
+  # =====================================================
+  nginx:
+    image: nginx:alpine
+    container_name: nexus-nginx
+    hostname: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx-sites:/etc/nginx/conf.d
+      - nexus_ssl_certs:/etc/nginx/ssl
+      - nexus_uploads:/var/www/uploads:ro
+    networks:
+      - nexus-network
+    depends_on:
+      nexus-backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================
+  # Monitoring and Health Checks (Optional)
+  # =====================================================
+  monitoring:
+    image: node:18-alpine
+    container_name: nexus-monitoring
+    hostname: monitoring
+    working_dir: /app
+    volumes:
+      - ./monitoring:/app
+    command: sh -c "npm install && node health-monitor.js"
+    environment:
+      - BACKEND_URL=http://nexus-backend:3001
+      - REDIS_URL=redis://redis:6379
+      - CHECK_INTERVAL=60000
+    networks:
+      - nexus-network
+    depends_on:
+      - nexus-backend
+      - redis
+    restart: unless-stopped
+
+# =====================================================
+# Named Volumes for Data Persistence
+# =====================================================
+volumes:
+  sqlserver_data:
+    driver: local
+  redis_data:
+    driver: local
+  nexus_uploads:
+    driver: local
+  nexus_logs:
+    driver: local
+  nexus_backups:
+    driver: local
+  nexus_ssl_certs:
+    driver: local
+
+# =====================================================
+# Custom Network
+# =====================================================
+networks:
+  nexus-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -3,16 +3,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, ExternalLink, Loader2 } from "lucide-react";
+import { Send, Bot, User, ExternalLink, Loader2, Palette, Wand2 } from "lucide-react";
+import { CanvaDesignPreview } from "@/components/chat/CanvaDesignPreview";
+import { CanvaDesignActions } from "@/components/chat/CanvaDesignActions";
+import { canvaMCPClient } from "@/services/canva/CanvaMCPClient";
+import type { CanvaDesign } from "@/types/canva";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: Array<{
     title: string;
-    type: "jira" | "confluence" | "code";
+    type: "jira" | "confluence" | "code" | "canva_design" | "canva_template";
     url: string;
+    thumbnail?: string;
   }>;
+  design?: CanvaDesign;
+  designs?: CanvaDesign[];
+  showDesignActions?: boolean;
 }
 
 export const ChatInterface = () => {
@@ -44,6 +52,19 @@ export const ChatInterface = () => {
         { title: "Authentication Architecture", type: "confluence" as const, url: "#" },
         { title: "AUTH-789: OAuth Implementation", type: "jira" as const, url: "#" }
       ]
+    },
+    "design": {
+      content: "I can help you create stunning designs! Here are some things I can do:\n\n• **Create presentations** - Professional slides for your meetings and pitches\n• **Generate marketing materials** - Flyers, posters, and social media graphics\n• **Design documents** - Reports, proposals, and documentation with great visuals\n• **Brand assets** - Logos, business cards, and branded materials\n\nWould you like me to create a design for you? Just describe what you need and I'll generate it using AI!",
+      showDesignActions: true,
+      sources: [
+        { title: "Professional Presentation Template", type: "canva_template" as const, url: "#", thumbnail: "https://via.placeholder.com/150x100/6366f1/white?text=Template" },
+        { title: "Marketing Flyer Collection", type: "canva_template" as const, url: "#", thumbnail: "https://via.placeholder.com/150x100/10b981/white?text=Flyer" },
+        { title: "Brand Kit Guidelines", type: "canva_design" as const, url: "#", thumbnail: "https://via.placeholder.com/150x100/f59e0b/white?text=Brand" }
+      ]
+    },
+    "presentations": {
+      content: "I can create professional presentations tailored to your needs! Here are some popular presentation types:\n\n• **Business Presentations** - Quarterly reviews, project updates, strategy decks\n• **Pitch Decks** - Investor presentations, startup pitches, sales proposals\n• **Educational Content** - Training materials, workshops, knowledge sharing\n• **Team Updates** - Sprint reviews, roadmap presentations, status reports\n\nJust tell me the topic and I'll generate a presentation with relevant content and professional design!",
+      showDesignActions: true
     }
   };
 
@@ -59,19 +80,24 @@ export const ChatInterface = () => {
     // Simulate API delay
     setTimeout(() => {
       let response = mockResponses.setup;
-      
+
       if (input.toLowerCase().includes("release") || input.toLowerCase().includes("blocking")) {
         response = mockResponses.release;
       } else if (input.toLowerCase().includes("oauth") || input.toLowerCase().includes("auth")) {
         response = mockResponses.oauth;
+      } else if (input.toLowerCase().includes("design") || input.toLowerCase().includes("create") || input.toLowerCase().includes("canva")) {
+        response = mockResponses.design;
+      } else if (input.toLowerCase().includes("presentation") || input.toLowerCase().includes("slides")) {
+        response = mockResponses.presentations;
       }
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
         content: response.content,
-        sources: response.sources
+        sources: response.sources,
+        showDesignActions: response.showDesignActions
       };
-      
+
       setMessages(prev => [...prev, assistantMessage]);
       setIsLoading(false);
     }, 1500);
@@ -82,6 +108,8 @@ export const ChatInterface = () => {
       case "jira": return "🎫";
       case "confluence": return "📝";
       case "code": return "💻";
+      case "canva_design": return "🎨";
+      case "canva_template": return "📐";
       default: return "📄";
     }
   };
@@ -91,8 +119,27 @@ export const ChatInterface = () => {
       case "jira": return "bg-info/20 text-info-foreground border-info/30";
       case "confluence": return "bg-warning/20 text-warning-foreground border-warning/30";
       case "code": return "bg-success/20 text-success-foreground border-success/30";
+      case "canva_design": return "bg-purple-100 text-purple-800 border-purple-300";
+      case "canva_template": return "bg-pink-100 text-pink-800 border-pink-300";
       default: return "bg-muted";
     }
+  };
+
+  const handleDesignCreated = (design: CanvaDesign) => {
+    const designMessage: ChatMessage = {
+      role: "assistant",
+      content: `I've created a new ${design.design_type.replace('_', ' ')} design for you! You can edit it in Canva or export it in various formats.`,
+      design,
+      sources: [
+        {
+          title: design.title,
+          type: "canva_design",
+          url: design.urls.edit_url,
+          thumbnail: design.thumbnail.url
+        }
+      ]
+    };
+    setMessages(prev => [...prev, designMessage]);
   };
 
   return (
@@ -103,10 +150,10 @@ export const ChatInterface = () => {
           <div className="text-center py-12">
             <Bot className="w-12 h-12 mx-auto mb-4 text-primary" />
             <h3 className="text-lg font-medium mb-2">Ask me anything about your project</h3>
-            <p className="text-muted-foreground">Try asking about setup, releases, or code architecture</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 max-w-4xl mx-auto">
-              <Card className="p-4 bg-gradient-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer" 
+            <p className="text-muted-foreground">Try asking about setup, releases, code architecture, or creating designs</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8 max-w-6xl mx-auto">
+              <Card className="p-4 bg-gradient-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
                     onClick={() => setInput("How do I set up local dev?")}>
                 <h4 className="font-medium mb-2">🚀 Onboarding</h4>
                 <p className="text-sm text-muted-foreground">"How do I set up local dev?"</p>
@@ -120,6 +167,11 @@ export const ChatInterface = () => {
                     onClick={() => setInput("Where is OAuth handled in the repo?")}>
                 <h4 className="font-medium mb-2">💻 Code Q&A</h4>
                 <p className="text-sm text-muted-foreground">"Where is OAuth handled in the repo?"</p>
+              </Card>
+              <Card className="p-4 bg-gradient-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
+                    onClick={() => setInput("Create a presentation about our Q1 roadmap")}>
+                <h4 className="font-medium mb-2">🎨 Design Help</h4>
+                <p className="text-sm text-muted-foreground">"Create a presentation about our Q1 roadmap"</p>
               </Card>
             </div>
           </div>
@@ -141,7 +193,21 @@ export const ChatInterface = () => {
                   <div className="whitespace-pre-wrap text-base leading-relaxed">
                     {message.content}
                   </div>
-                  
+
+                  {/* Design Preview */}
+                  {message.design && (
+                    <div className="mt-4">
+                      <CanvaDesignPreview design={message.design} />
+                    </div>
+                  )}
+
+                  {/* Design Actions */}
+                  {message.showDesignActions && (
+                    <div className="mt-4">
+                      <CanvaDesignActions onDesignCreated={handleDesignCreated} />
+                    </div>
+                  )}
+
                   {message.sources && (
                     <div className="mt-4 pt-4 border-t border-border/30">
                       <h4 className="text-xs font-medium text-muted-foreground mb-2">SOURCES</h4>
@@ -153,10 +219,18 @@ export const ChatInterface = () => {
                             className="h-auto p-2 w-full justify-start text-left hover:bg-secondary/50"
                             onClick={() => window.open(source.url, '_blank')}
                           >
-                            <span className="mr-2">{getSourceIcon(source.type)}</span>
+                            {source.thumbnail ? (
+                              <img
+                                src={source.thumbnail}
+                                alt={source.title}
+                                className="w-6 h-4 object-cover rounded mr-2"
+                              />
+                            ) : (
+                              <span className="mr-2">{getSourceIcon(source.type)}</span>
+                            )}
                             <span className="flex-1 text-sm">{source.title}</span>
                             <Badge className={`ml-2 text-xs ${getSourceColor(source.type)}`}>
-                              {source.type}
+                              {source.type.replace('_', ' ')}
                             </Badge>
                             <ExternalLink className="w-3 h-3 ml-2" />
                           </Button>
@@ -198,7 +272,7 @@ export const ChatInterface = () => {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about your project, code, or releases..."
+              placeholder="Ask about your project, code, releases, or create designs..."
               className="pr-12 bg-primary/5 border-border/50 focus:border-primary/50"
               disabled={isLoading}
             />
