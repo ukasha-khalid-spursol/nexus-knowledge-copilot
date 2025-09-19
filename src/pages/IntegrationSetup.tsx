@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Key, Shield, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
 import Navbar from "@/components/Navbar";
 
 const IntegrationSetup = () => {
@@ -51,8 +53,33 @@ const IntegrationSetup = () => {
     setIsConnecting(true);
 
     try {
-      // Simulate API validation (replace with actual authentication logic)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const user = (await supabase.auth.getSession()).data.session?.user;
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      if (service === 'jira') {
+        // For Jira, we need to validate the credentials first
+        const baseUrl = prompt("Enter your Jira instance URL (e.g., https://yourcompany.atlassian.net):");
+        const email = prompt("Enter your Jira email address:");
+        
+        if (!baseUrl || !email) {
+          throw new Error("Jira URL and email are required");
+        }
+
+        const credentials = { baseUrl, email, apiToken: apiKey };
+        const jiraService = new (await import('@/services/jira/JiraIntegrationService')).JiraIntegrationService(credentials);
+        
+        const isValid = await jiraService.validateCredentials();
+        if (!isValid) {
+          throw new Error("Invalid Jira credentials");
+        }
+
+        await JiraIntegrationService.saveIntegration(user.id, credentials);
+      } else {
+        // Simulate API validation for other services
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
 
       toast({
         title: "Integration Connected!",
@@ -64,7 +91,7 @@ const IntegrationSetup = () => {
     } catch (error) {
       toast({
         title: "Connection Failed",
-        description: "Please check your API key and try again",
+        description: error instanceof Error ? error.message : "Please check your API key and try again",
         variant: "destructive"
       });
     } finally {

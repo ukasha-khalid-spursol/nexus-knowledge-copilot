@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      integrations: {
+        Row: {
+          additional_config: Json | null
+          api_key_encrypted: string
+          base_url: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_verified_at: string | null
+          service_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          additional_config?: Json | null
+          api_key_encrypted: string
+          base_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          service_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          additional_config?: Json | null
+          api_key_encrypted?: string
+          base_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          service_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

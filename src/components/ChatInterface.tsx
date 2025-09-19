@@ -9,6 +9,15 @@ import { CanvaDesignActions } from "@/components/chat/CanvaDesignActions";
 import { canvaMCPClient } from "@/services/canva/CanvaMCPClient";
 import type { CanvaDesign } from "@/types/canva";
 
+interface MockResponse {
+  content: string;
+  sources?: Array<{
+    title: string;
+    type: "jira" | "confluence" | "code";
+    url: string;
+  }>;
+  showDesignActions?: boolean;
+}
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -27,7 +36,7 @@ export const ChatInterface = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const mockResponses = {
+  const mockResponses: Record<string, MockResponse> = {
     "setup": {
       content: "To set up your local development environment, you'll need to:\n\n1. Clone the repository from GitHub\n2. Install Node.js (version 18+) and npm\n3. Run `npm install` to install dependencies\n4. Copy `.env.example` to `.env` and configure your API keys\n5. Run `npm run dev` to start the development server\n\nThe setup documentation is detailed in our Confluence space with step-by-step instructions.",
       sources: [
