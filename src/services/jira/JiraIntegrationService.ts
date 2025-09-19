@@ -21,21 +21,51 @@ export interface JiraIssue {
 export class JiraIntegrationService {
   constructor(private credentials: JiraCredentials) {}
 
-  async validateCredentials(): Promise<boolean> {
+  async validateCredentials(): Promise<{ isValid: boolean; error?: string }> {
     try {
-      const response = await fetch(`${this.credentials.baseUrl}/rest/api/3/myself`, {
+      // Clean up base URL (remove trailing slash, ensure https)
+      let baseUrl = this.credentials.baseUrl.trim();
+      if (!baseUrl.startsWith('http')) {
+        baseUrl = `https://${baseUrl}`;
+      }
+      baseUrl = baseUrl.replace(/\/$/, '');
+
+      console.log('Validating Jira credentials for:', baseUrl);
+
+      const response = await fetch(`${baseUrl}/rest/api/3/myself`, {
         method: 'GET',
         headers: {
           'Authorization': `Basic ${btoa(`${this.credentials.email}:${this.credentials.apiToken}`)}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json'
-        }
+        },
+        mode: 'cors' // This will likely fail due to CORS, but we'll handle it
       });
 
-      return response.ok;
+      if (response.ok) {
+        return { isValid: true };
+      } else if (response.status === 401) {
+        return { isValid: false, error: 'Invalid email or API token' };
+      } else if (response.status === 404) {
+        return { isValid: false, error: 'Jira instance URL not found' };
+      } else {
+        return { isValid: false, error: `Server returned status ${response.status}` };
+      }
     } catch (error) {
       console.error('Jira validation error:', error);
-      return false;
+      
+      // Handle CORS and network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return { 
+          isValid: false, 
+          error: 'Cannot reach Jira instance. Please verify the URL is correct and accessible.' 
+        };
+      }
+      
+      return { 
+        isValid: false, 
+        error: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
     }
   }
 

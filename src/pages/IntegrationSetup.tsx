@@ -67,15 +67,20 @@ const IntegrationSetup = () => {
           throw new Error("Jira URL and email are required");
         }
 
-        const credentials = { baseUrl, email, apiToken: apiKey };
+        console.log('Attempting Jira validation with:', { baseUrl, email, hasToken: !!apiKey });
+
+        const credentials = { baseUrl: baseUrl.trim(), email: email.trim(), apiToken: apiKey.trim() };
         const jiraService = new (await import('@/services/jira/JiraIntegrationService')).JiraIntegrationService(credentials);
         
-        const isValid = await jiraService.validateCredentials();
-        if (!isValid) {
-          throw new Error("Invalid Jira credentials");
+        const validation = await jiraService.validateCredentials();
+        console.log('Validation result:', validation);
+        
+        if (!validation.isValid) {
+          throw new Error(validation.error || "Invalid Jira credentials");
         }
 
         await JiraIntegrationService.saveIntegration(user.id, credentials);
+        console.log('Jira integration saved successfully');
       } else {
         // Simulate API validation for other services
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -89,9 +94,10 @@ const IntegrationSetup = () => {
       // Navigate back to integrations page
       navigate("/integrations");
     } catch (error) {
+      console.error('Integration connection error:', error);
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Please check your API key and try again",
+        description: error instanceof Error ? error.message : "Please check your credentials and try again",
         variant: "destructive"
       });
     } finally {
