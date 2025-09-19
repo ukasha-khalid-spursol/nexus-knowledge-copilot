@@ -129,7 +129,7 @@ export class JiraIntegrationService {
       .eq('user_id', userId)
       .eq('service_name', 'jira')
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       return null;

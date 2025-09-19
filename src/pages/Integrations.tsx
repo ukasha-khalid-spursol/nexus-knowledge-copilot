@@ -8,6 +8,7 @@ import { Database, FileText, Code, Palette, ArrowRight, CheckCircle, Shield } fr
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
+import { IntegrationsService } from "@/services/integrations/IntegrationsService";
 import type { User } from "@supabase/supabase-js";
 import type { CanvaCredentials, CanvaUser } from "@/types/canva";
 import { CanvaConnectService } from "@/services/canva/CanvaConnectService";
@@ -64,6 +65,22 @@ const Integrations = () => {
       navigate("/auth");
     }
   }, [loading, user, navigate]);
+
+  // Load integration status from database
+  useEffect(() => {
+    const loadIntegrations = async () => {
+      if (!user) return;
+
+      try {
+        const status = await IntegrationsService.getIntegrationStatus(user.id);
+        setConnections(status);
+      } catch (error) {
+        console.error('Failed to load integrations:', error);
+      }
+    };
+
+    loadIntegrations();
+  }, [user]);
 
   if (loading || roleLoading) {
     return (

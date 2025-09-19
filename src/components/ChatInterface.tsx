@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { CanvaDesignPreview } from "@/components/chat/CanvaDesignPreview";
 import { CanvaDesignActions } from "@/components/chat/CanvaDesignActions";
 import { canvaMCPClient } from "@/services/canva/CanvaMCPClient";
 import type { CanvaDesign } from "@/types/canva";
+import { supabase } from "@/integrations/supabase/client";
+import { IntegrationsService } from "@/services/integrations/IntegrationsService";
 
 interface MockResponse {
   content: string;
@@ -35,6 +37,13 @@ export const ChatInterface = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+  }, []);
 
   const mockResponses: Record<string, MockResponse> = {
     "setup": {
@@ -86,30 +95,62 @@ export const ChatInterface = () => {
     setInput("");
     setIsLoading(true);
 
-    // Simulate API delay
-    setTimeout(() => {
-      let response = mockResponses.setup;
+    // Search across integrated services
+    const handleSearch = async () => {
+      try {
+        if (user) {
+          const results = await IntegrationsService.searchAcrossIntegrations(user.id, input);
+          
+          if (results.length > 0) {
+            const assistantMessage: ChatMessage = {
+              role: "assistant",
+              content: `I found ${results.length} relevant results from your integrated services:`,
+              sources: results.map(result => ({
+                title: result.title,
+                type: result.type,
+                url: result.url
+              }))
+            };
+            setMessages(prev => [...prev, assistantMessage]);
+            setIsLoading(false);
+            return;
+          }
+        }
 
-      if (input.toLowerCase().includes("release") || input.toLowerCase().includes("blocking")) {
-        response = mockResponses.release;
-      } else if (input.toLowerCase().includes("oauth") || input.toLowerCase().includes("auth")) {
-        response = mockResponses.oauth;
-      } else if (input.toLowerCase().includes("design") || input.toLowerCase().includes("create") || input.toLowerCase().includes("canva")) {
-        response = mockResponses.design;
-      } else if (input.toLowerCase().includes("presentation") || input.toLowerCase().includes("slides")) {
-        response = mockResponses.presentations;
+        // Fall back to mock responses
+        let response = mockResponses.setup;
+
+        if (input.toLowerCase().includes("release") || input.toLowerCase().includes("blocking")) {
+          response = mockResponses.release;
+        } else if (input.toLowerCase().includes("oauth") || input.toLowerCase().includes("auth")) {
+          response = mockResponses.oauth;
+        } else if (input.toLowerCase().includes("design") || input.toLowerCase().includes("create") || input.toLowerCase().includes("canva")) {
+          response = mockResponses.design;
+        } else if (input.toLowerCase().includes("presentation") || input.toLowerCase().includes("slides")) {
+          response = mockResponses.presentations;
+        }
+
+        const assistantMessage: ChatMessage = {
+          role: "assistant",
+          content: response.content,
+          sources: response.sources,
+          showDesignActions: response.showDesignActions
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+      } catch (error) {
+        console.error('Search failed:', error);
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "I'm sorry, there was an error searching your knowledge base. Please try again.",
+          sources: []
+        }]);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const assistantMessage: ChatMessage = {
-        role: "assistant",
-        content: response.content,
-        sources: response.sources,
-        showDesignActions: response.showDesignActions
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1500);
+    handleSearch();
   };
 
   const getSourceIcon = (type: string) => {
