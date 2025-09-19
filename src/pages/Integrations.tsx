@@ -8,7 +8,7 @@ import { Database, FileText, Code, Palette, ArrowRight, CheckCircle, Shield } fr
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
-import { IntegrationsService } from "@/services/integrations/IntegrationsService";
+import { IntegrationsService, type IntegrationStatus } from "@/services/integrations/IntegrationsService";
 import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
 import type { User } from "@supabase/supabase-js";
 import type { CanvaCredentials, CanvaUser } from "@/types/canva";
@@ -16,11 +16,11 @@ import { CanvaConnectService } from "@/services/canva/CanvaConnectService";
 import Navbar from "@/components/Navbar";
 
 const Integrations = () => {
-  const [connections, setConnections] = useState({
-    jira: false,
-    confluence: false,
-    sourcegraph: false,
-    canva: false,
+  const [connections, setConnections] = useState<IntegrationStatus>({
+    jira: { connected: false, enabled: false },
+    confluence: { connected: false, enabled: false },
+    sourcegraph: { connected: false, enabled: false },
+    canva: { connected: false, enabled: false },
   });
   const [canvaCredentials, setCanvaCredentials] = useState<CanvaCredentials | null>(null);
   const [canvaUserInfo, setCanvaUserInfo] = useState<CanvaUser | null>(null);
@@ -153,23 +153,66 @@ const Integrations = () => {
 
     try {
       if (service === 'jira') {
-        await JiraIntegrationService.removeIntegration(user.id);
+        await IntegrationsService.removeIntegration(user.id, service);
       } else if (service === 'canva') {
         handleCanvaDisconnect();
         return;
+      } else {
+        await IntegrationsService.removeIntegration(user.id, service);
       }
 
       // Update local state
-      setConnections(prev => ({ ...prev, [service]: false }));
+      setConnections(prev => ({ 
+        ...prev, 
+        [service]: { connected: false, enabled: false }
+      }));
 
       toast({
-        title: "Integration Disconnected",
-        description: `Successfully disconnected from ${service}`,
+        title: "Integration Removed",
+        description: `Successfully removed ${service} integration`,
       });
     } catch (error) {
       toast({
-        title: "Disconnection Failed",
-        description: `Failed to disconnect from ${service}`,
+        title: "Removal Failed",
+        description: `Failed to remove ${service} integration`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleToggleEnabled = async (service: keyof typeof connections, enabled: boolean) => {
+    if (!user) return;
+
+    try {
+      if (service === 'canva') {
+        // Handle Canva differently since it's not in database
+        setConnections(prev => ({ 
+          ...prev, 
+          canva: { ...prev.canva, enabled }
+        }));
+        toast({
+          title: enabled ? "Canva Enabled" : "Canva Disabled",
+          description: `Canva integration has been ${enabled ? 'enabled' : 'disabled'}`,
+        });
+        return;
+      }
+
+      await IntegrationsService.toggleIntegration(user.id, service, enabled);
+      
+      // Update local state
+      setConnections(prev => ({ 
+        ...prev, 
+        [service]: { ...prev[service], enabled }
+      }));
+
+      toast({
+        title: enabled ? "Integration Enabled" : "Integration Disabled",
+        description: `${service} integration has been ${enabled ? 'enabled' : 'disabled'}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Toggle Failed",
+        description: `Failed to ${enabled ? 'enable' : 'disable'} ${service} integration`,
         variant: "destructive"
       });
     }
@@ -186,7 +229,10 @@ const Integrations = () => {
 
       // Simulate successful connection for demo
       setTimeout(() => {
-        setConnections(prev => ({ ...prev, canva: true }));
+        setConnections(prev => ({ 
+          ...prev, 
+          canva: { connected: true, enabled: true }
+        }));
         // Simulate getting credentials and user info
         const mockCredentials: CanvaCredentials = {
           access_token: "demo_access_token",
@@ -224,7 +270,10 @@ const Integrations = () => {
 
   const handleCanvaDisconnect = async () => {
     try {
-      setConnections(prev => ({ ...prev, canva: false }));
+      setConnections(prev => ({ 
+        ...prev, 
+        canva: { connected: false, enabled: false }
+      }));
       setCanvaCredentials(null);
       setCanvaUserInfo(null);
       setCanvaService(null);
@@ -250,7 +299,7 @@ const Integrations = () => {
     });
   };
 
-  const allConnected = Object.values(connections).every(Boolean);
+  const allConnected = Object.values(connections).every(service => service.connected);
 
   return (
     <div className="min-h-screen bg-background">
@@ -273,31 +322,37 @@ const Integrations = () => {
               name="Jira"
               description="Connect your project management and issue tracking to get insights on tickets, epics, and release planning."
               icon={<Database className="w-5 h-5" />}
-              connected={connections.jira}
+              connected={connections.jira.connected}
+              enabled={connections.jira.enabled}
               onConnect={() => handleConnect("jira")}
               onDisconnect={() => handleDisconnect("jira")}
+              onToggleEnabled={(enabled) => handleToggleEnabled("jira", enabled)}
             />
 
             <IntegrationCard
               name="Confluence"
               description="Access your team's documentation, knowledge base articles, and collaborative content."
               icon={<FileText className="w-5 h-5" />}
-              connected={connections.confluence}
+              connected={connections.confluence.connected}
+              enabled={connections.confluence.enabled}
               onConnect={() => handleConnect("confluence")}
               onDisconnect={() => handleDisconnect("confluence")}
+              onToggleEnabled={(enabled) => handleToggleEnabled("confluence", enabled)}
             />
 
             <IntegrationCard
               name="Sourcegraph"
               description="Index your codebase for intelligent code search and understanding with AI-powered insights."
               icon={<Code className="w-5 h-5" />}
-              connected={connections.sourcegraph}
+              connected={connections.sourcegraph.connected}
+              enabled={connections.sourcegraph.enabled}
               onConnect={() => handleConnect("sourcegraph")}
               onDisconnect={() => handleDisconnect("sourcegraph")}
+              onToggleEnabled={(enabled) => handleToggleEnabled("sourcegraph", enabled)}
             />
 
             <CanvaIntegrationCard
-              isConnected={connections.canva}
+              isConnected={connections.canva.connected}
               credentials={canvaCredentials}
               userInfo={canvaUserInfo}
               onConnect={handleCanvaConnect}
