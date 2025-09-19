@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { IntegrationsService, type IntegrationStatus } from "@/services/integrations/IntegrationsService";
 import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
+import { ConfluenceIntegrationService } from "@/services/confluence/ConfluenceIntegrationService";
 import type { User } from "@supabase/supabase-js";
 import type { CanvaCredentials, CanvaUser } from "@/types/canva";
 import { CanvaConnectService } from "@/services/canva/CanvaConnectService";
@@ -153,6 +154,8 @@ const Integrations = () => {
 
     try {
       if (service === 'jira') {
+        await IntegrationsService.removeIntegration(user.id, service);
+      } else if (service === 'confluence') {
         await IntegrationsService.removeIntegration(user.id, service);
       } else if (service === 'canva') {
         handleCanvaDisconnect();

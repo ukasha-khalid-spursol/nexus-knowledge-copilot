@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { JiraIntegrationService } from "@/services/jira/JiraIntegrationService";
+import { ConfluenceIntegrationService } from "@/services/confluence/ConfluenceIntegrationService";
 
 export interface IntegrationStatus {
   jira: { connected: boolean; enabled: boolean };
@@ -98,7 +99,33 @@ export class IntegrationsService {
       }
     }
 
-    // TODO: Add Confluence and Sourcegraph search when implemented
+    // Search Confluence if connected and enabled
+    if (status.confluence.connected && status.confluence.enabled) {
+      const confluenceCredentials = await ConfluenceIntegrationService.loadIntegration(userId);
+      if (confluenceCredentials) {
+        try {
+          const confluenceService = new ConfluenceIntegrationService(confluenceCredentials);
+          const confluencePages = await confluenceService.searchPages(query, undefined, 10);
+          
+          results.push(...confluencePages.map(page => ({
+            title: page.title,
+            type: 'confluence' as const,
+            url: page.url,
+            content: page.excerpt || page.content?.substring(0, 300) || '',
+            metadata: {
+              space: page.space,
+              author: page.author,
+              lastModified: page.lastModified,
+              status: page.status
+            }
+          })));
+        } catch (error) {
+          console.error('Confluence search failed:', error);
+        }
+      }
+    }
+
+    // TODO: Add Sourcegraph search when implemented
 
     return results;
   }

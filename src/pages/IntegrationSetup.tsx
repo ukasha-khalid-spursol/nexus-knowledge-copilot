@@ -8,6 +8,7 @@ import { ArrowLeft, Key, Shield, CheckCircle, Globe, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { JiraIntegrationService, type JiraCredentials } from "@/services/jira/JiraIntegrationService";
+import { ConfluenceIntegrationService, type ConfluenceCredentials } from "@/services/confluence/ConfluenceIntegrationService";
 import Navbar from "@/components/Navbar";
 
 const IntegrationSetup = () => {
@@ -15,8 +16,8 @@ const IntegrationSetup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState("");
-  const [jiraUrl, setJiraUrl] = useState("");
-  const [jiraEmail, setJiraEmail] = useState("");
+  const [serviceUrl, setServiceUrl] = useState("");
+  const [serviceEmail, setServiceEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const serviceInfo = {
@@ -52,11 +53,11 @@ const IntegrationSetup = () => {
       return;
     }
 
-    // Validate Jira-specific fields
-    if (service === 'jira' && (!jiraUrl.trim() || !jiraEmail.trim())) {
+    // Validate service-specific fields
+    if ((service === 'jira' || service === 'confluence') && (!serviceUrl.trim() || !serviceEmail.trim())) {
       toast({
         title: "Required Fields Missing",
-        description: "Please enter your Jira URL and email address",
+        description: `Please enter your ${service} URL and email address`,
         variant: "destructive"
       });
       return;
@@ -72,13 +73,22 @@ const IntegrationSetup = () => {
 
       if (service === 'jira') {
         const credentials: JiraCredentials = { 
-          baseUrl: jiraUrl.trim(), 
-          email: jiraEmail.trim(), 
+          baseUrl: serviceUrl.trim(), 
+          email: serviceEmail.trim(), 
           apiToken: apiKey.trim() 
         };
 
         await JiraIntegrationService.saveIntegration(user.id, credentials);
         console.log('Jira integration saved successfully');
+      } else if (service === 'confluence') {
+        const credentials: ConfluenceCredentials = { 
+          baseUrl: serviceUrl.trim(), 
+          email: serviceEmail.trim(), 
+          apiToken: apiKey.trim() 
+        };
+
+        await ConfluenceIntegrationService.saveIntegration(user.id, credentials);
+        console.log('Confluence integration saved successfully');
       } else {
         // Simulate saving for other services
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -176,42 +186,42 @@ const IntegrationSetup = () => {
                 </p>
               </div>
 
-              {/* Jira-specific fields */}
-              {service === 'jira' && (
+              {/* Service-specific fields */}
+              {(service === 'jira' || service === 'confluence') && (
                 <>
                   <div className="space-y-3">
-                    <Label htmlFor="jiraUrl" className="text-base font-medium flex items-center gap-2">
+                    <Label htmlFor="serviceUrl" className="text-base font-medium flex items-center gap-2">
                       <Globe className="w-4 h-4" />
-                      Jira Instance URL
+                      {service === 'jira' ? 'Jira Instance URL' : 'Confluence Instance URL'}
                     </Label>
                     <Input
-                      id="jiraUrl"
+                      id="serviceUrl"
                       type="url"
-                      placeholder="https://yourcompany.atlassian.net"
-                      value={jiraUrl}
-                      onChange={(e) => setJiraUrl(e.target.value)}
+                      placeholder={service === 'jira' ? "https://yourcompany.atlassian.net" : "https://yourcompany.atlassian.net/wiki"}
+                      value={serviceUrl}
+                      onChange={(e) => setServiceUrl(e.target.value)}
                       className="text-base"
                     />
                     <p className="text-sm text-muted-foreground">
-                      Your Jira instance URL (e.g., https://yourcompany.atlassian.net)
+                      Your {service} instance URL (e.g., https://yourcompany.atlassian.net{service === 'confluence' ? '/wiki' : ''})
                     </p>
                   </div>
 
                   <div className="space-y-3">
-                    <Label htmlFor="jiraEmail" className="text-base font-medium flex items-center gap-2">
+                    <Label htmlFor="serviceEmail" className="text-base font-medium flex items-center gap-2">
                       <Mail className="w-4 h-4" />
                       Email Address
                     </Label>
                     <Input
-                      id="jiraEmail"
+                      id="serviceEmail"
                       type="email"
                       placeholder="your.email@company.com"
-                      value={jiraEmail}
-                      onChange={(e) => setJiraEmail(e.target.value)}
+                      value={serviceEmail}
+                      onChange={(e) => setServiceEmail(e.target.value)}
                       className="text-base"
                     />
                     <p className="text-sm text-muted-foreground">
-                      The email address associated with your Jira account
+                      The email address associated with your {service} account
                     </p>
                   </div>
                 </>
@@ -223,7 +233,7 @@ const IntegrationSetup = () => {
                 disabled={
                   isSaving || 
                   !apiKey.trim() || 
-                  (service === 'jira' && (!jiraUrl.trim() || !jiraEmail.trim()))
+                  ((service === 'jira' || service === 'confluence') && (!serviceUrl.trim() || !serviceEmail.trim()))
                 }
                 className="w-full bg-gradient-primary hover:opacity-90 text-primary-foreground shadow-glow"
                 size="lg"
